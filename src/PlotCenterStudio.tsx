@@ -1,563 +1,308 @@
-import { useState, useEffect, useCallback, type ChangeEvent } from 'react';
+import { useState, useRef, type ChangeEvent } from 'react';
 import {
-    ShieldCheck,
     Upload,
-    Zap,
-    FileImage,
-    CheckCircle2,
-    XCircle,
-    AlertTriangle,
-    Download,
-    RefreshCcw,
-    Sparkles,
-    Monitor,
-    BarChart3,
-    Activity,
-    Palette,
-    Type,
-    Wand2,
-    FileText,
-    ClipboardCheck
+    Copy,
+    FileCode
 } from 'lucide-react';
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    Cell
-} from 'recharts';
 
-interface PlotFile {
-    name: string;
-    width: number;
-    height: number;
-    base64: string;
-    preview: string;
+interface ColorData {
+    hex: string;
+    rgb: { r: number; g: number; b: number };
+    cmyk: { c: number; m: number; y: number; k: number };
 }
-
-interface PreflightReport {
-    analisis: string;
-    sustrato: string;
-    acabado: string;
-    scores: { nitidez: number; contraste: number; color: number };
-    veredicto_final: 'APTO' | 'APTO CON RESERVAS' | 'NO APTO';
-    motivo_veredicto: string;
-    detected_colors: Array<{ hex: string; name: string }>;
-    detected_typography: string[];
-    recomienda_retoque: boolean;
-}
-
-interface FileMetrics {
-    dpi: number;
-    distance: string;
-    ratio: number;
-    ratioText: string;
-    scalability: number;
-}
-
-// Escenarios para el Mockup
-const SCENES = [
-    {
-        id: 'billboard',
-        name: 'Valla Publicitaria Premium',
-        category: 'Exterior',
-        preview: 'https://images.unsplash.com/photo-1541535650810-10d26f5c2abb?auto=format&fit=crop&q=80&w=1200',
-        containerStyle: 'perspective-[1200px]',
-        innerStyle: 'w-[72%] h-[42%] bg-white shadow-2xl absolute top-[20%] left-[14%] transform rotate-y-[-18deg] rotate-x-[2deg] skew-y-[-1deg]',
-        lighting: 'bg-gradient-to-tr from-black/20 via-transparent to-white/10',
-        blend: 'multiply'
-    },
-    {
-        id: 'mupi-night',
-        name: 'Mupi Urbano Nocturno',
-        category: 'Ciudad',
-        preview: 'https://images.unsplash.com/photo-1617393445313-fe76005086ec?auto=format&fit=crop&q=80&w=1200',
-        containerStyle: 'perspective-[1000px]',
-        innerStyle: 'w-[32.5%] h-[58%] bg-white absolute top-[18.2%] left-[33.8%] transform rotate-y-[4deg] shadow-[0_0_50px_rgba(255,255,255,0.2)]',
-        lighting: 'bg-gradient-to-b from-white/20 via-transparent to-black/40',
-        blend: 'screen',
-        glow: true
-    },
-    {
-        id: 'gallery',
-        name: 'Galería Minimalista',
-        category: 'Interior',
-        preview: 'https://images.unsplash.com/photo-1549490349-8643362247b5?auto=format&fit=crop&q=80&w=1200',
-        containerStyle: '',
-        innerStyle: 'w-[42%] h-[56%] bg-white absolute top-[20%] left-[29%] border-[16px] border-slate-900 shadow-[0_50px_100px_rgba(0,0,0,0.5)]',
-        lighting: 'bg-gradient-to-br from-white/10 to-black/20',
-        blend: 'normal'
-    }
-];
 
 export default function PlotCenterStudio() {
-    const [view, setView] = useState<string>('preflight');
-    const [file, setFile] = useState<PlotFile | null>(null);
-    const [toast, setToast] = useState<{ show: boolean, message: string }>({ show: false, message: '' });
+    const [image, setImage] = useState<string | null>(null);
+    const [selectedColor, setSelectedColor] = useState<ColorData>({
+        hex: '#FFA500',
+        rgb: { r: 255, g: 165, b: 0 },
+        cmyk: { c: 0, m: 35, y: 100, k: 0 }
+    });
+    const [recentColors, setRecentColors] = useState<string[]>(['#C0C0C0', '#FFFFFF', '#000000', '#eb671b', '#FFA500']);
+    const [predominantPalette] = useState<string[]>(['#000000', '#F0691E', '#FFFFFF', '#878787', '#C3C3C3']);
 
-    // Pre-flight State
-    const [targetW, setTargetW] = useState<number>(100);
-    const [targetH, setTargetH] = useState<number>(100);
-    const [unit, setUnit] = useState<string>('cm');
-    const [metrics, setMetrics] = useState<FileMetrics>({ dpi: 0, distance: '0', ratio: 1, ratioText: 'Cuadrado', scalability: 0 });
-    const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-    const [isGenerating, setIsGenerating] = useState<boolean>(false);
-    const [preflightReport, setPreflightReport] = useState<PreflightReport | null>(null);
-    const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const imgRef = useRef<HTMLImageElement>(null);
 
-    // Mockup State
-    const [selectedScene] = useState<typeof SCENES[0]>(SCENES[0]);
-    const [mockupAdj] = useState<{ zoom: number, x: number, y: number }>({ zoom: 100, x: 0, y: 0 });
-
-    const showToast = (message: string) => {
-        setToast({ show: true, message });
-        setTimeout(() => setToast({ show: false, message: '' }), 3000);
-    };
-
-    const updateMetrics = useCallback(() => {
-        if (!file || !targetW || !targetH) return;
-        const wInches = unit === 'cm' ? targetW / 2.54 : unit === 'm' ? (targetW * 100) / 2.54 : targetW;
-        const dpi = Math.round(file.width / wInches);
-        const distance = (300 / (dpi || 1)) * 0.35;
-        const scalability = Math.max(0, Math.round((dpi / 72) * 100) - 100);
-        const ratio = targetW / targetH;
-        const ratioText = ratio > 1.2 ? 'Paisaje' : ratio < 0.8 ? 'Retrato' : 'Cuadrado';
-        setMetrics({ dpi, distance: distance.toFixed(2), ratio, ratioText, scalability });
-    }, [file, targetW, targetH, unit]);
-
-    useEffect(() => { updateMetrics(); }, [updateMetrics]);
-
-    const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile && selectedFile.type.startsWith('image/')) {
+    const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
             const reader = new FileReader();
             reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    setFile({
-                        name: selectedFile.name,
-                        width: img.width,
-                        height: img.height,
-                        base64: (event.target?.result as string).split(',')[1],
-                        preview: event.target?.result as string
-                    });
-                    setPreflightReport(null);
-                    setEnhancedImage(null);
-                    showToast("DISEÑO CARGADO");
-                };
-                img.src = event.target?.result as string;
+                setImage(event.target?.result as string);
             };
-            reader.readAsDataURL(selectedFile);
+            reader.readAsDataURL(file);
         }
     };
 
-    const runAIAnalysis = async (type: 'preflight' | 'mockup') => {
-        if (!file) return;
-        setIsAnalyzing(true);
+    const rgbToCmyk = (r: number, g: number, b: number) => {
+        let c = 1 - r / 255;
+        let m = 1 - g / 255;
+        let y = 1 - b / 255;
+        let k = Math.min(c, Math.min(m, y));
 
-        const systemPrompt = type === 'preflight'
-            ? `Eres el Analista Jefe de Plot Center. Analiza el archivo para impresión de gran formato de forma exhaustiva. 
-         Responde estrictamente en JSON con:
-         "analisis": (string largo detallando nitidez, calidad visual, ruidos y artefactos),
-         "sustrato": (string sugerencia de material),
-         "acabado": (string sugerencia de terminación),
-         "scores": { "nitidez": 0-100, "contraste": 0-100, "color": 0-100 },
-         "veredicto_final": "APTO" | "APTO CON RESERVAS" | "NO APTO",
-         "motivo_veredicto": (string corto resumido),
-         "detected_colors": [{"hex": "#string", "name": "string"}],
-         "detected_typography": ["string"],
-         "recomienda_retoque": (boolean)`
-            : `Experto en Neuromarketing. Analiza impacto en ${selectedScene.name}. Responde en JSON: "impacto": 0-100, "puntos_fuertes": [], "sugerencias": [].`;
+        if (k === 1) return { c: 0, m: 0, y: 0, k: 100 };
+        c = Math.round(((c - k) / (1 - k)) * 100);
+        m = Math.round(((m - k) / (1 - k)) * 100);
+        y = Math.round(((y - k) / (1 - k)) * 100);
+        k = Math.round(k * 100);
 
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        return { c, m, y, k };
+    };
 
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: "Genera un diagnóstico técnico detallado, incluyendo análisis de colores y tipografía." }, { inlineData: { mimeType: "image/png", data: file.base64 } }] }],
-                    systemInstruction: { parts: [{ text: systemPrompt }] },
-                    generationConfig: { responseMimeType: "application/json" }
-                })
-            });
-            const result = await response.json();
-            const data = JSON.parse(result.candidates[0].content.parts[0].text);
+    const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
+        if (!imgRef.current || !canvasRef.current) return;
 
-            if (type === 'preflight') {
-                setPreflightReport(data);
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const img = imgRef.current;
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+
+        const rect = img.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * img.naturalWidth;
+        const y = ((e.clientY - rect.top) / rect.height) * img.naturalHeight;
+
+        const pixel = ctx.getImageData(x, y, 1, 1).data;
+        const r = pixel[0];
+        const g = pixel[1];
+        const b = pixel[2];
+        const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
+
+        const cmyk = rgbToCmyk(r, g, b);
+
+        const newColor = { hex, rgb: { r, g, b }, cmyk };
+        setSelectedColor(newColor);
+
+        if (!recentColors.includes(hex)) {
+            setRecentColors(prev => [hex, ...prev.slice(0, 4)]);
+        }
+    };
+
+    const rgbToHsl = (r: number, g: number, b: number) => {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h = 0, s, l = (max + min) / 2;
+        if (max === min) h = s = 0;
+        else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
             }
-
-            showToast("DIAGNÓSTICO COMPLETO");
-        } catch (e) {
-            console.error(e);
-            showToast("ERROR DE RED IA");
-        } finally {
-            setIsAnalyzing(false);
+            h /= 6;
         }
+        return { h: h * 360, s: s * 100, l: l * 100 };
     };
 
-    const generateEnhancedVersion = async () => {
-        if (!file) return;
-        setIsGenerating(true);
-        showToast("RE-DISEÑANDO CON NANO BANANA...");
-
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`;
-
-        const prompt = "Actúa como un diseñador senior de Plot Center. Rediseña esta imagen para que sea una versión 'mejorada' de alta fidelidad, optimizada para impresión profesional de lujo. Mantén los elementos centrales pero eleva la estética.";
-
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: prompt },
-                            { inlineData: { mimeType: "image/png", data: file.base64 } }
-                        ]
-                    }],
-                    generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
-                })
-            });
-
-            const result = await response.json();
-            const base64Data = result?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
-
-            if (base64Data) {
-                setEnhancedImage(`data:image/png;base64,${base64Data}`);
-                showToast("VERSIÓN MASTER IA LISTA");
-            } else {
-                showToast("ERROR GENERATIVO");
-            }
-        } catch (error) {
-            console.error(error);
-            showToast("ERROR DE CONEXIÓN GENERATIVA");
-        } finally {
-            setIsGenerating(false);
-        }
+    const hslToHex = (h: number, s: number, l: number) => {
+        l /= 100;
+        const a = s * Math.min(l, 1 - l) / 100;
+        const f = (n: number) => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color).toString(16).padStart(2, '0');
+        };
+        return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
     };
 
-    const chartData = [
-        { name: 'Tu Archivo', val: metrics.dpi, fill: '#eb671b' },
-        { name: 'Gran Formato', val: 72, fill: '#64748b' },
-        { name: 'Comercial', val: 150, fill: '#64748b' },
-        { name: 'Bellas Artes', val: 300, fill: '#64748b' },
-    ];
-
-    const getVerdictStyle = (verdict: string) => {
-        switch (verdict) {
-            case 'APTO': return { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', glow: 'shadow-[0_0_40px_rgba(16,185,129,0.2)]', icon: <CheckCircle2 className="text-emerald-400" size={32} /> };
-            case 'APTO CON RESERVAS': return { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', glow: 'shadow-[0_0_40px_rgba(245,158,11,0.2)]', icon: <AlertTriangle className="text-amber-400" size={32} /> };
-            case 'NO APTO': return { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', glow: 'shadow-[0_0_40px_rgba(239,68,68,0.2)]', icon: <XCircle className="text-red-400" size={32} /> };
-            default: return { color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20', glow: '', icon: <Activity size={32} /> };
-        }
+    const getHarmonies = () => {
+        const { h, s, l } = rgbToHsl(selectedColor.rgb.r, selectedColor.rgb.g, selectedColor.rgb.b);
+        return {
+            complementary: [selectedColor.hex, hslToHex((h + 180) % 360, s, l)],
+            analogous: [hslToHex((h - 30 + 360) % 360, s, l), selectedColor.hex, hslToHex((h + 30) % 360, s, l)],
+            triad: [selectedColor.hex, hslToHex((h + 120) % 360, s, l), hslToHex((h + 240) % 360, s, l)]
+        };
     };
+
+    const harmonies = getHarmonies();
+
+    // Mini helper for card shadows and styles
+    const cardClass = "bg-white rounded-[2rem] p-6 premium-shadow inner-border flex flex-col";
+    const sectionTitle = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center justify-between";
 
     return (
-        <div className="min-h-screen bg-[#06080f] text-white selection:bg-orange-500/30 font-sans antialiased pb-20">
-            <div className="fixed inset-0 pointer-events-none opacity-20 bg-[radial-gradient(at_0%_0%,#eb671b_0,transparent_50%),radial-gradient(at_100%_100%,#6366f1_0,transparent_50%)]"></div>
-
-            <nav className="sticky top-0 z-50 bg-[#0f172a]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4">
-                <div className="max-w-[1600px] mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-[#eb671b] to-[#ff8c42] rounded-2xl flex items-center justify-center text-white shadow-xl rotate-3">
-                            <ShieldCheck size={26} strokeWidth={2.5} />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-black tracking-tighter text-white uppercase">Plot Center <span className="text-orange-500">Studio</span></h1>
-                            <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                                <p className="text-[9px] uppercase font-black text-slate-400 tracking-[0.3em]">AI Technical Lab</p>
-                            </div>
-                        </div>
+        <div className="min-h-screen p-6 max-w-[1400px] mx-auto text-slate-900">
+            {/* Nav */}
+            <header className="flex items-center justify-between mb-8 px-2">
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-brand-orange rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-orange/20">
+                        <span className="font-black text-xl">PC</span>
                     </div>
-
-                    <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/5">
-                        <button onClick={() => setView('preflight')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'preflight' ? 'bg-white/10 text-white shadow-lg border border-white/10' : 'text-slate-400 hover:text-white'}`}>Diagnóstico</button>
-                        {file && <button onClick={() => setView('mockup')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${view === 'mockup' ? 'bg-orange-500 text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}><Monitor size={14} />Simulador</button>}
+                    <div>
+                        <h1 className="text-lg font-bold tracking-tight text-slate-800">Plot Center <span className="font-light text-slate-400">Intelligence</span></h1>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mt-[-2px]">COLOR STUDIO V2.0</p>
                     </div>
                 </div>
-            </nav>
-
-            <main className="max-w-[1600px] mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
-
-                <aside className="lg:col-span-4 space-y-6">
-                    <div className="bg-[#111827]/60 backdrop-blur-xl p-8 rounded-[3rem] shadow-2xl border border-white/10">
-                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2"><Activity size={12} /> Unidad de Ingesta</h2>
-
-                        {!file ? (
-                            <label className="block group cursor-pointer">
-                                <input type="file" className="hidden" onChange={handleFile} accept="image/*" />
-                                <div className="rounded-[2.5rem] p-12 text-center bg-slate-900/40 border-2 border-dashed border-white/10 group-hover:border-orange-500/50 transition-all">
-                                    <div className="w-16 h-16 bg-slate-800 rounded-3xl flex items-center justify-center mx-auto text-slate-600 mb-4 group-hover:text-orange-500 transition-colors shadow-inner"><Upload size={32} /></div>
-                                    <p className="text-sm font-bold text-slate-200 uppercase tracking-tighter">Vincular Archivo</p>
-                                </div>
-                            </label>
-                        ) : (
-                            <div className="space-y-6 animate-in fade-in duration-500">
-                                <div className="p-5 bg-white/5 rounded-[2rem] border border-white/10 flex items-center gap-4">
-                                    <div className="w-16 h-16 rounded-2xl bg-slate-800 bg-cover bg-center border border-white/10 shadow-xl" style={{ backgroundImage: `url(${file.preview})` }}></div>
-                                    <div className="overflow-hidden">
-                                        <p className="text-xs font-black text-white truncate">{file.name}</p>
-                                        <p className="text-[10px] text-orange-500 font-bold tracking-widest uppercase mt-1">{file.width}x{file.height} PX</p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-5 bg-slate-900/40 p-6 rounded-[2rem] border border-white/5 shadow-inner">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase px-1 opacity-70">Ancho Final</label>
-                                            <input type="number" value={targetW} onChange={(e) => setTargetW(Number(e.target.value))} className="w-full px-5 py-4 bg-slate-900/80 border border-white/5 rounded-2xl outline-none focus:border-orange-500 text-white font-bold" />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase px-1 opacity-70">Alto Final</label>
-                                            <input type="number" value={targetH} onChange={(e) => setTargetH(Number(e.target.value))} className="w-full px-5 py-4 bg-slate-900/80 border border-white/5 rounded-2xl outline-none focus:border-orange-500 text-white font-bold" />
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 p-1 bg-slate-950 rounded-xl">
-                                        {['cm', 'm', 'in'].map(u => (
-                                            <button key={u} onClick={() => setUnit(u)} className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${unit === u ? 'bg-white/10 text-white shadow-lg' : 'text-slate-500'}`}>{u.toUpperCase()}</button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-3">
-                                    <button onClick={() => runAIAnalysis('preflight')} disabled={isAnalyzing} className="w-full py-5 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-[2.5rem] text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-indigo-900/20 active:scale-95 transition-all disabled:opacity-50">
-                                        {isAnalyzing ? <RefreshCcw className="animate-spin" size={16} /> : <Zap size={16} />}
-                                        Analizar ADN Visual
-                                    </button>
-                                    <button onClick={generateEnhancedVersion} disabled={isGenerating || !file} className="w-full py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[2.5rem] text-orange-500 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50">
-                                        {isGenerating ? <RefreshCcw className="animate-spin" size={16} /> : <Wand2 size={16} />}
-                                        Nano Banana: Mejorar Arte
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </aside>
-
-                <section className="lg:col-span-8">
-                    <div className="bg-[#111827]/60 backdrop-blur-xl p-10 rounded-[3.5rem] shadow-2xl border border-white/10 min-h-[750px] flex flex-col relative overflow-hidden">
-
-                        {view === 'preflight' ? (
-                            <div className="flex-grow flex flex-col relative z-10 animate-in fade-in duration-500">
-                                <div className="flex items-center justify-between mb-12">
-                                    <div>
-                                        <h2 className="text-4xl font-black text-white tracking-tighter italic leading-none">Diagnostic Analytics</h2>
-                                        <p className="text-sm text-slate-400 mt-3 opacity-80">Unidad neural de validación estética y técnica.</p>
-                                    </div>
-                                </div>
-
-                                {!file ? (
-                                    <div className="flex-grow flex flex-col items-center justify-center opacity-10 py-48"><FileImage size={100} strokeWidth={1} /><p className="mt-6 text-2xl font-black italic uppercase tracking-tighter">Waiting for Input...</p></div>
-                                ) : (
-                                    <div className="space-y-12">
-
-                                        {/* VEREDICTO DE CALIDAD */}
-                                        <div className="animate-in slide-in-from-top-10 duration-700">
-                                            {isAnalyzing ? (
-                                                <div className="w-full p-10 rounded-[3rem] bg-indigo-500/5 border border-indigo-500/20 flex flex-col items-center gap-6 text-center">
-                                                    <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin shadow-lg"></div>
-                                                    <p className="text-xl font-black text-indigo-300 italic">Analizando píxeles y tipografía...</p>
-                                                </div>
-                                            ) : preflightReport ? (
-                                                (() => {
-                                                    const v = getVerdictStyle(preflightReport.veredicto_final);
-                                                    return (
-                                                        <div className={`w-full p-10 rounded-[3.5rem] ${v.bg} border-2 ${v.border} ${v.glow} flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-2xl`}>
-                                                            <div className="shrink-0 p-6 bg-black/40 rounded-[2.5rem] shadow-inner">{v.icon}</div>
-                                                            <div className="text-center md:text-left flex-grow">
-                                                                <p className="text-[10px] font-black text-white uppercase tracking-[0.3em] mb-2 opacity-80">Veredicto de Impresión</p>
-                                                                <h3 className={`text-5xl font-black ${v.color} tracking-tighter leading-none`}>{preflightReport.veredicto_final}</h3>
-                                                                <p className="text-sm text-white font-medium mt-4 max-w-lg leading-relaxed">{preflightReport.motivo_veredicto}</p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })()
-                                            ) : null}
-                                        </div>
-
-                                        {/* INFORME TÉCNICO ESCRITO (DIAGNÓSTICO COMPLETO) */}
-                                        {preflightReport && (
-                                            <div className="p-10 rounded-[3.5rem] bg-white/5 border border-white/10 animate-in fade-in duration-1000 shadow-xl relative overflow-hidden group">
-                                                <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity"><FileText size={120} /></div>
-                                                <div className="flex items-center gap-4 mb-8">
-                                                    <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/30">
-                                                        <ClipboardCheck size={22} />
-                                                    </div>
-                                                    <h3 className="text-xl font-black text-white italic tracking-tight">Informe Técnico Detallado</h3>
-                                                </div>
-                                                <div className="text-sm text-white leading-relaxed font-medium space-y-4 max-w-3xl border-l-2 border-indigo-500/30 pl-8">
-                                                    {preflightReport.analisis.split('\n').map((para: string, i: number) => (
-                                                        <p key={i} className="opacity-90">{para}</p>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* ADN: TIPOGRAFÍA Y COLORES */}
-                                        {preflightReport && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 shadow-lg">
-                                                    <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-8 flex items-center gap-2"><Palette size={14} /> ADN Cromático Detectado</h4>
-                                                    <div className="flex flex-wrap gap-4">
-                                                        {preflightReport.detected_colors.map((c: { hex: string; name: string }, i: number) => (
-                                                            <div key={i} className="flex items-center gap-3 bg-black/40 p-2 pr-5 rounded-full border border-white/10 shadow-xl">
-                                                                <div className="w-10 h-10 rounded-full border border-white/20 shadow-lg shrink-0" style={{ backgroundColor: c.hex }}></div>
-                                                                <div>
-                                                                    <p className="text-[11px] font-black text-white">{c.hex.toUpperCase()}</p>
-                                                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{c.name}</p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 shadow-lg">
-                                                    <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-8 flex items-center gap-2"><Type size={14} /> Familias Tipográficas</h4>
-                                                    <div className="flex flex-wrap gap-3">
-                                                        {preflightReport.detected_typography.map((t: string, i: number) => (
-                                                            <span key={i} className="px-5 py-3 bg-indigo-500/20 border border-indigo-500/30 rounded-[1.2rem] text-xs font-black text-white italic shadow-lg tracking-tight">
-                                                                {t}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                    <div className="mt-8 p-4 bg-black/20 rounded-2xl border border-white/5">
-                                                        <p className="text-[9px] text-slate-400 italic">Detección basada en recognition de formas y glifos vía OCR Neural.</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* IA ENHANCED: NANO BANANA */}
-                                        {enhancedImage && (
-                                            <div className="p-10 rounded-[3.5rem] bg-orange-500/10 border border-orange-500/20 animate-in slide-in-from-bottom-10 duration-700 shadow-2xl">
-                                                <div className="flex items-center justify-between mb-10">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-orange-500/20"><Sparkles size={24} /></div>
-                                                        <div>
-                                                            <h3 className="text-2xl font-black text-white tracking-tight italic leading-none">AI Enhanced (Nano Banana)</h3>
-                                                            <p className="text-[10px] font-black text-orange-400 uppercase mt-2 tracking-widest">Optimización de Arte para Plotter</p>
-                                                        </div>
-                                                    </div>
-                                                    <button onClick={() => {
-                                                        const link = document.createElement("a");
-                                                        link.href = enhancedImage;
-                                                        link.download = "plot-center-enhanced.png";
-                                                        link.click();
-                                                    }} className="px-6 py-3 bg-white/10 border border-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-white/20 transition-all">
-                                                        <Download size={14} /> Exportar Master
-                                                    </button>
-                                                </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-                                                    <div className="space-y-6 text-white pr-4">
-                                                        <p className="text-sm leading-relaxed font-medium opacity-90 border-l-2 border-orange-500 pl-6">Hemos generado una versión reconstruida por IA que optimiza el contraste local, elimina ruidos de compresión y suaviza bordes tipográficos para una impresión master de lujo.</p>
-                                                        <div className="flex gap-4">
-                                                            <div className="flex flex-col gap-1"><span className="text-[9px] font-black uppercase text-slate-500">Nitidez</span><div className="w-20 h-1 bg-orange-500/20 rounded-full"><div className="w-[95%] h-full bg-orange-500 rounded-full"></div></div></div>
-                                                            <div className="flex flex-col gap-1"><span className="text-[9px] font-black uppercase text-slate-500">Balance</span><div className="w-20 h-1 bg-orange-500/20 rounded-full"><div className="w-[88%] h-full bg-orange-500 rounded-full"></div></div></div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="relative aspect-video rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl group ring-4 ring-orange-500/20">
-                                                        <img src={enhancedImage} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt="Enhanced" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                            <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 relative overflow-hidden group">
-                                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-6">Densidad DPI</p>
-                                                <div className="flex items-baseline gap-2"><span className="text-6xl font-black text-white leading-none tabular-nums">{metrics.dpi}</span><span className="text-xs font-bold text-orange-500 uppercase tracking-tighter">DPI</span></div>
-                                            </div>
-                                            <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 relative overflow-hidden group">
-                                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-6">Escalabilidad</p>
-                                                <div className="flex items-baseline gap-2"><span className="text-6xl font-black text-white leading-none tabular-nums">+{metrics.scalability}</span><span className="text-xs font-bold text-indigo-400 uppercase tracking-tighter">%</span></div>
-                                            </div>
-                                            <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 flex flex-col items-center justify-center text-center">
-                                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4">Ratio Proporción</p>
-                                                <div className="border-2 border-white/30 rounded-xl mb-3 shadow-2xl bg-white/5" style={{ width: metrics.ratio > 1 ? '50px' : `${50 * metrics.ratio}px`, height: metrics.ratio > 1 ? `${50 / metrics.ratio}px` : '50px' }}></div>
-                                                <p className="text-[11px] font-black text-white uppercase tracking-widest">{metrics.ratioText}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                                            <div className="lg:col-span-8 p-10 bg-white/5 rounded-[3rem] border border-white/10 shadow-xl">
-                                                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest mb-8 flex items-center gap-2"><BarChart3 size={14} /> Benchmarking de Resolución</h3>
-                                                <div className="h-[280px] w-full">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                                                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                                                            <XAxis dataKey="name" stroke="#ffffff" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: '#ffffff' }} />
-                                                            <YAxis stroke="#ffffff" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: '#ffffff' }} />
-                                                            <Tooltip
-                                                                contentStyle={{
-                                                                    backgroundColor: '#0f172a',
-                                                                    border: '1px solid rgba(255,255,255,0.2)',
-                                                                    borderRadius: '16px',
-                                                                    color: '#ffffff',
-                                                                    boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
-                                                                }}
-                                                                itemStyle={{ color: '#ffffff' }}
-                                                                labelStyle={{ color: '#ffffff', fontWeight: 'bold', marginBottom: '4px' }}
-                                                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                                            />
-                                                            <Bar dataKey="val" radius={[10, 10, 0, 0]} barSize={45}>
-                                                                {chartData.map((entry, index) => (
-                                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                                ))}
-                                                            </Bar>
-                                                        </BarChart>
-                                                    </ResponsiveContainer>
-                                                </div>
-                                            </div>
-                                            <div className="lg:col-span-4 p-8 bg-[#eb671b]/10 rounded-[2.5rem] border border-orange-500/20 text-center flex flex-col justify-center items-center min-h-[350px] shadow-2xl">
-                                                <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-6">Visibilidad Óptima</p>
-                                                <span className="text-7xl font-black text-white tabular-nums leading-none">{metrics.distance}</span>
-                                                <p className="text-[11px] font-bold text-white mt-4 uppercase tracking-widest opacity-80">METROS MÍNIMOS</p>
-                                                <div className="mt-10 p-5 bg-black/40 rounded-2xl border border-white/5">
-                                                    <p className="text-[9px] text-slate-400 font-medium italic leading-relaxed">Distancia calculada para evitar la percepción de la retícula de píxeles.</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex-grow flex flex-col relative z-10 animate-in fade-in duration-500">
-                                <div className="flex items-center justify-between mb-10">
-                                    <h2 className="text-4xl font-black text-white tracking-tighter italic uppercase leading-none">Impact Simulator</h2>
-                                    <p className="text-sm text-slate-300 mt-1 uppercase font-black tracking-widest"><span className="text-orange-500">{selectedScene.name}</span></p>
-                                </div>
-
-                                <div className="flex-grow flex items-center justify-center bg-slate-900/80 rounded-[4rem] border border-white/5 relative overflow-hidden group shadow-2xl">
-                                    <div className={`w-full h-full bg-cover bg-center absolute transition-all duration-1000 ${selectedScene.containerStyle}`} style={{ backgroundImage: `url(${selectedScene.preview})` }}>
-                                        <div className={`${selectedScene.innerStyle} overflow-hidden shadow-2xl shadow-black/50 transition-all duration-300`} style={{ transform: `${selectedScene.innerStyle.split('transform ')[1] || ''} scale(${mockupAdj.zoom / 100}) translate(${mockupAdj.x}px, ${mockupAdj.y}px)` }}>
-                                            <img src={enhancedImage || file?.preview} className="w-full h-full object-cover" />
-                                            <div className={`absolute inset-0 ${selectedScene.lighting} pointer-events-none mix-blend-${selectedScene.blend}`}></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="absolute -right-60 -bottom-60 w-[500px] h-[500px] bg-[#eb671b]/5 rounded-full blur-[180px]"></div>
-                    </div>
-                </section>
-            </main>
-
-            {toast.show && (
-                <div className="fixed bottom-12 left-1/2 -translate-x-1/2 animate-in slide-in-from-bottom-12 fade-in duration-500 z-[200]">
-                    <div className="bg-white text-[#080b14] px-10 py-5 rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.5)] font-black text-xs uppercase tracking-widest flex items-center gap-4 border border-white/20">
-                        <Zap className="text-orange-500 fill-orange-500" size={18} />
-                        <span>{toast.message}</span>
+                <div className="flex items-center gap-4">
+                    <button className="flex items-center gap-2 text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors">
+                        <FileCode size={14} /> EXPORTAR CSS
+                    </button>
+                    <div className="px-4 py-1.5 bg-orange-100/50 text-brand-orange rounded-full text-[10px] font-black uppercase tracking-wider border border-orange-200">
+                        ANÁLISIS ACTIVO
                     </div>
                 </div>
-            )}
+            </header>
+
+            <div className="grid grid-cols-12 gap-6">
+                {/* Lateral Izquierdo */}
+                <div className="col-span-3 space-y-6">
+                    {/* Laboratorio */}
+                    <div className={cardClass}>
+                        <h2 className={sectionTitle}>LABORATORIO</h2>
+                        <label className="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl p-8 hover:border-brand-orange/50 transition-colors cursor-pointer text-center">
+                            <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
+                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-4">
+                                <Upload size={24} />
+                            </div>
+                            <p className="text-xs font-bold text-slate-500">Analizar Nueva Referencia</p>
+                        </label>
+                    </div>
+
+                    {/* Recientes */}
+                    <div className={cardClass}>
+                        <h2 className={sectionTitle}>
+                            RECIENTES
+                            <button className="text-[9px] hover:text-slate-600" onClick={() => setRecentColors([])}>Limpiar</button>
+                        </h2>
+                        <div className="flex gap-2">
+                            {recentColors.map((c, i) => (
+                                <div key={i} className="w-10 h-10 rounded-full border-4 border-slate-50 shadow-inner shrink-0 cursor-pointer hover:scale-110 transition-transform" style={{ backgroundColor: c }} onClick={() => setSelectedColor({ hex: c, rgb: { r: 0, g: 0, b: 0 }, cmyk: { c: 0, m: 0, y: 0, k: 0 } })}></div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Vista de Marca */}
+                    <div className="bg-[#1e1f2b] rounded-[2rem] p-8 premium-shadow flex flex-col items-center aspect-square">
+                        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-8 w-full">VISTA DE MARCA</h2>
+                        <div className="w-full h-40 rounded-2xl p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden" style={{ backgroundColor: selectedColor.hex }}>
+                            <div className="w-8 h-8 rounded-full border-2 border-white/20"></div>
+                            <div className="flex justify-between items-end">
+                                <div className="w-12 h-0.5 bg-white/20 rounded-full"></div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black text-white/90">PLOT CENTER</p>
+                                    <p className="text-[7px] font-medium text-white/50 uppercase tracking-tighter">Estudio de Diseño</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p className="text-[9px] text-slate-600 mt-6 font-medium italic">Visualización en tarjeta premium</p>
+                    </div>
+                </div>
+
+                {/* Centro */}
+                <div className="col-span-6 space-y-6">
+                    {/* Preview Principal */}
+                    <div className="bg-white rounded-[3rem] p-12 premium-shadow inner-border flex flex-col items-center min-h-[500px] justify-between">
+                        <div className="flex-grow flex items-center justify-center w-full relative">
+                            {image ? (
+                                <div className="relative group">
+                                    <img
+                                        ref={imgRef}
+                                        src={image}
+                                        alt="Preview"
+                                        className="max-h-[350px] rounded-2xl shadow-2xl cursor-crosshair transition-transform active:scale-[0.98]"
+                                        onClick={handleImageClick}
+                                    />
+                                    <canvas ref={canvasRef} className="hidden" />
+                                    <div className="absolute inset-x-0 bottom-[-50px] flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="bg-slate-900/80 text-white px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-widest backdrop-blur-sm">
+                                            HAZ CLIC PARA CAPTURAR UN COLOR
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-slate-300 flex flex-col items-center gap-4">
+                                    <Upload size={80} strokeWidth={1} />
+                                    <p className="font-bold uppercase tracking-tighter text-xl italic">Waiting for Input...</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Paleta Predominante */}
+                        <div className="w-full pt-12 text-left">
+                            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">PALETA PREDOMINANTE</h2>
+                            <div className="flex gap-4">
+                                {predominantPalette.map((c, i) => (
+                                    <div key={i} className="flex flex-col items-center gap-3">
+                                        <div className="w-20 h-24 rounded-2xl shadow-xl border-4 border-white transition-transform hover:-translate-y-2 cursor-pointer" style={{ backgroundColor: c }}></div>
+                                        <span className="text-[10px] font-black text-slate-400 tabular-nums">{c}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Lateral Derecho */}
+                <div className="col-span-3 space-y-6">
+                    {/* Selección */}
+                    <div className={cardClass}>
+                        <h2 className={sectionTitle}>
+                            SELECCIÓN
+                            <span className="text-[8px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500">DARK TEXT PREFERRED</span>
+                        </h2>
+                        <div className="w-full aspect-square rounded-[2.5rem] p-4 flex items-center justify-center mb-6 relative">
+                            <div className="w-40 h-40 rounded-[2rem] shadow-2xl shadow-black/20" style={{ backgroundColor: selectedColor.hex }}></div>
+                            <div className="absolute inset-0 bg-white/5 pointer-events-none rounded-[2.5rem]"></div>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                <div>
+                                    <p className="text-[8px] font-black text-slate-400 uppercase">HEX CODE</p>
+                                    <p className="text-xl font-black text-slate-800 tabular-nums">{selectedColor.hex}</p>
+                                </div>
+                                <button className="text-slate-300 hover:text-brand-orange transition-colors"><Copy size={18} /></button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase">RGB</p>
+                                    <p className="text-[11px] font-black text-slate-800 tabular-nums">{selectedColor.rgb.r}, {selectedColor.rgb.g}, {selectedColor.rgb.b}</p>
+                                </div>
+                                <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                                    <p className="text-[8px] font-black text-brand-orange uppercase">CMYK</p>
+                                    <p className="text-[11px] font-black text-brand-orange tabular-nums">{selectedColor.cmyk.c}-{selectedColor.cmyk.m}-{selectedColor.cmyk.y}-{selectedColor.cmyk.k}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Armonías */}
+                    <div className={cardClass}>
+                        <h2 className={sectionTitle}>ARMONÍAS CROMÁTICAS</h2>
+                        <div className="space-y-6">
+                            <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">COMPLEMENTARIO</p>
+                                <div className="flex gap-2 h-8">
+                                    {harmonies.complementary.map((c, i) => (
+                                        <div key={i} className="flex-1 rounded-md" style={{ backgroundColor: c }}></div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">ANÁLOGOS</p>
+                                <div className="flex gap-2 h-8">
+                                    {harmonies.analogous.map((c, i) => (
+                                        <div key={i} className="flex-1 rounded-md" style={{ backgroundColor: c }}></div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">TRÍADA</p>
+                                <div className="flex gap-2 h-8">
+                                    {harmonies.triad.map((c, i) => (
+                                        <div key={i} className="flex-1 rounded-md" style={{ backgroundColor: c }}></div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
