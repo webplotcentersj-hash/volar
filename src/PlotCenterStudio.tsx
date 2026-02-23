@@ -6,16 +6,12 @@ import {
     Zap,
     RefreshCcw,
     Wand2,
-    ShieldCheck,
     CheckCircle2,
     AlertTriangle,
     XCircle,
     Activity,
     ClipboardCheck,
-    FileText,
     Palette,
-    Type,
-    Sparkles,
     Download,
     BarChart3
 } from 'lucide-react';
