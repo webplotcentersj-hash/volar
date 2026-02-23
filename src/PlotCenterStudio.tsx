@@ -1,27 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ChangeEvent } from 'react';
 import {
     ShieldCheck,
     Upload,
-    Ruler,
-    Cpu,
     Zap,
     FileImage,
     CheckCircle2,
     XCircle,
     AlertTriangle,
-    Layout,
-    Eye,
     Download,
-    Image as ImageIcon,
     RefreshCcw,
     Sparkles,
-    ArrowRight,
     Monitor,
     BarChart3,
     Activity,
-    Maximize2,
-    TrendingUp,
-    Percent,
     Palette,
     Type,
     Wand2,
@@ -38,6 +29,34 @@ import {
     ResponsiveContainer,
     Cell
 } from 'recharts';
+
+interface PlotFile {
+    name: string;
+    width: number;
+    height: number;
+    base64: string;
+    preview: string;
+}
+
+interface PreflightReport {
+    analisis: string;
+    sustrato: string;
+    acabado: string;
+    scores: { nitidez: number; contraste: number; color: number };
+    veredicto_final: 'APTO' | 'APTO CON RESERVAS' | 'NO APTO';
+    motivo_veredicto: string;
+    detected_colors: Array<{ hex: string; name: string }>;
+    detected_typography: string[];
+    recomienda_retoque: boolean;
+}
+
+interface FileMetrics {
+    dpi: number;
+    distance: string;
+    ratio: number;
+    ratioText: string;
+    scalability: number;
+}
 
 // Escenarios para el Mockup
 const SCENES = [
@@ -75,33 +94,32 @@ const SCENES = [
 ];
 
 export default function PlotCenterStudio() {
-    const [view, setView] = useState('preflight');
-    const [file, setFile] = useState(null);
-    const [toast, setToast] = useState({ show: false, message: '' });
+    const [view, setView] = useState<string>('preflight');
+    const [file, setFile] = useState<PlotFile | null>(null);
+    const [toast, setToast] = useState<{ show: boolean, message: string }>({ show: false, message: '' });
 
     // Pre-flight State
-    const [targetW, setTargetW] = useState(100);
-    const [targetH, setTargetH] = useState(100);
-    const [unit, setUnit] = useState('cm');
-    const [metrics, setMetrics] = useState({ dpi: 0, distance: 0, ratio: 1, ratioText: 'Cuadrado', scalability: 0 });
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [preflightReport, setPreflightReport] = useState(null);
-    const [enhancedImage, setEnhancedImage] = useState(null);
+    const [targetW, setTargetW] = useState<number>(100);
+    const [targetH, setTargetH] = useState<number>(100);
+    const [unit, setUnit] = useState<string>('cm');
+    const [metrics, setMetrics] = useState<FileMetrics>({ dpi: 0, distance: '0', ratio: 1, ratioText: 'Cuadrado', scalability: 0 });
+    const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+    const [isGenerating, setIsGenerating] = useState<boolean>(false);
+    const [preflightReport, setPreflightReport] = useState<PreflightReport | null>(null);
+    const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
 
     // Mockup State
-    const [selectedScene, setSelectedScene] = useState(SCENES[0]);
-    const [mockupAnalysis, setMockupAnalysis] = useState(null);
-    const [mockupAdj, setMockupAdj] = useState({ zoom: 100, x: 0, y: 0 });
+    const [selectedScene] = useState<typeof SCENES[0]>(SCENES[0]);
+    const [mockupAdj] = useState<{ zoom: number, x: number, y: number }>({ zoom: 100, x: 0, y: 0 });
 
-    const showToast = (message) => {
+    const showToast = (message: string) => {
         setToast({ show: true, message });
         setTimeout(() => setToast({ show: false, message: '' }), 3000);
     };
 
     const updateMetrics = useCallback(() => {
         if (!file || !targetW || !targetH) return;
-        let wInches = unit === 'cm' ? targetW / 2.54 : unit === 'm' ? (targetW * 100) / 2.54 : targetW;
+        const wInches = unit === 'cm' ? targetW / 2.54 : unit === 'm' ? (targetW * 100) / 2.54 : targetW;
         const dpi = Math.round(file.width / wInches);
         const distance = (300 / (dpi || 1)) * 0.35;
         const scalability = Math.max(0, Math.round((dpi / 72) * 100) - 100);
@@ -112,8 +130,8 @@ export default function PlotCenterStudio() {
 
     useEffect(() => { updateMetrics(); }, [updateMetrics]);
 
-    const handleFile = (e) => {
-        const selectedFile = e.target.files[0];
+    const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
         if (selectedFile && selectedFile.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = (event) => {
@@ -123,21 +141,20 @@ export default function PlotCenterStudio() {
                         name: selectedFile.name,
                         width: img.width,
                         height: img.height,
-                        base64: event.target.result.split(',')[1],
-                        preview: event.target.result
+                        base64: (event.target?.result as string).split(',')[1],
+                        preview: event.target?.result as string
                     });
                     setPreflightReport(null);
-                    setMockupAnalysis(null);
                     setEnhancedImage(null);
                     showToast("DISEÑO CARGADO");
                 };
-                img.src = event.target.result;
+                img.src = event.target?.result as string;
             };
             reader.readAsDataURL(selectedFile);
         }
     };
 
-    const runAIAnalysis = async (type) => {
+    const runAIAnalysis = async (type: 'preflight' | 'mockup') => {
         if (!file) return;
         setIsAnalyzing(true);
 
@@ -155,7 +172,7 @@ export default function PlotCenterStudio() {
          "recomienda_retoque": (boolean)`
             : `Experto en Neuromarketing. Analiza impacto en ${selectedScene.name}. Responde en JSON: "impacto": 0-100, "puntos_fuertes": [], "sugerencias": [].`;
 
-        const apiKey = "";
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
         try {
@@ -171,8 +188,9 @@ export default function PlotCenterStudio() {
             const result = await response.json();
             const data = JSON.parse(result.candidates[0].content.parts[0].text);
 
-            if (type === 'preflight') setPreflightReport(data);
-            else setMockupAnalysis(data);
+            if (type === 'preflight') {
+                setPreflightReport(data);
+            }
 
             showToast("DIAGNÓSTICO COMPLETO");
         } catch (e) {
@@ -188,7 +206,7 @@ export default function PlotCenterStudio() {
         setIsGenerating(true);
         showToast("RE-DISEÑANDO CON NANO BANANA...");
 
-        const apiKey = "";
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`;
 
         const prompt = "Actúa como un diseñador senior de Plot Center. Rediseña esta imagen para que sea una versión 'mejorada' de alta fidelidad, optimizada para impresión profesional de lujo. Mantén los elementos centrales pero eleva la estética.";
@@ -209,7 +227,7 @@ export default function PlotCenterStudio() {
             });
 
             const result = await response.json();
-            const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+            const base64Data = result?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
 
             if (base64Data) {
                 setEnhancedImage(`data:image/png;base64,${base64Data}`);
@@ -232,7 +250,7 @@ export default function PlotCenterStudio() {
         { name: 'Bellas Artes', val: 300, fill: '#64748b' },
     ];
 
-    const getVerdictStyle = (verdict) => {
+    const getVerdictStyle = (verdict: string) => {
         switch (verdict) {
             case 'APTO': return { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', glow: 'shadow-[0_0_40px_rgba(16,185,129,0.2)]', icon: <CheckCircle2 className="text-emerald-400" size={32} /> };
             case 'APTO CON RESERVAS': return { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', glow: 'shadow-[0_0_40px_rgba(245,158,11,0.2)]', icon: <AlertTriangle className="text-amber-400" size={32} /> };
@@ -295,11 +313,11 @@ export default function PlotCenterStudio() {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-slate-400 uppercase px-1 opacity-70">Ancho Final</label>
-                                            <input type="number" value={targetW} onChange={(e) => setTargetW(e.target.value)} className="w-full px-5 py-4 bg-slate-900/80 border border-white/5 rounded-2xl outline-none focus:border-orange-500 text-white font-bold" />
+                                            <input type="number" value={targetW} onChange={(e) => setTargetW(Number(e.target.value))} className="w-full px-5 py-4 bg-slate-900/80 border border-white/5 rounded-2xl outline-none focus:border-orange-500 text-white font-bold" />
                                         </div>
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-slate-400 uppercase px-1 opacity-70">Alto Final</label>
-                                            <input type="number" value={targetH} onChange={(e) => setTargetH(e.target.value)} className="w-full px-5 py-4 bg-slate-900/80 border border-white/5 rounded-2xl outline-none focus:border-orange-500 text-white font-bold" />
+                                            <input type="number" value={targetH} onChange={(e) => setTargetH(Number(e.target.value))} className="w-full px-5 py-4 bg-slate-900/80 border border-white/5 rounded-2xl outline-none focus:border-orange-500 text-white font-bold" />
                                         </div>
                                     </div>
                                     <div className="flex gap-2 p-1 bg-slate-950 rounded-xl">
@@ -376,7 +394,7 @@ export default function PlotCenterStudio() {
                                                     <h3 className="text-xl font-black text-white italic tracking-tight">Informe Técnico Detallado</h3>
                                                 </div>
                                                 <div className="text-sm text-white leading-relaxed font-medium space-y-4 max-w-3xl border-l-2 border-indigo-500/30 pl-8">
-                                                    {preflightReport.analisis.split('\n').map((para, i) => (
+                                                    {preflightReport.analisis.split('\n').map((para: string, i: number) => (
                                                         <p key={i} className="opacity-90">{para}</p>
                                                     ))}
                                                 </div>
@@ -389,7 +407,7 @@ export default function PlotCenterStudio() {
                                                 <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 shadow-lg">
                                                     <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-8 flex items-center gap-2"><Palette size={14} /> ADN Cromático Detectado</h4>
                                                     <div className="flex flex-wrap gap-4">
-                                                        {preflightReport.detected_colors.map((c, i) => (
+                                                        {preflightReport.detected_colors.map((c: { hex: string; name: string }, i: number) => (
                                                             <div key={i} className="flex items-center gap-3 bg-black/40 p-2 pr-5 rounded-full border border-white/10 shadow-xl">
                                                                 <div className="w-10 h-10 rounded-full border border-white/20 shadow-lg shrink-0" style={{ backgroundColor: c.hex }}></div>
                                                                 <div>
@@ -403,7 +421,7 @@ export default function PlotCenterStudio() {
                                                 <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 shadow-lg">
                                                     <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-8 flex items-center gap-2"><Type size={14} /> Familias Tipográficas</h4>
                                                     <div className="flex flex-wrap gap-3">
-                                                        {preflightReport.detected_typography.map((t, i) => (
+                                                        {preflightReport.detected_typography.map((t: string, i: number) => (
                                                             <span key={i} className="px-5 py-3 bg-indigo-500/20 border border-indigo-500/30 rounded-[1.2rem] text-xs font-black text-white italic shadow-lg tracking-tight">
                                                                 {t}
                                                             </span>
@@ -519,7 +537,7 @@ export default function PlotCenterStudio() {
                                 <div className="flex-grow flex items-center justify-center bg-slate-900/80 rounded-[4rem] border border-white/5 relative overflow-hidden group shadow-2xl">
                                     <div className={`w-full h-full bg-cover bg-center absolute transition-all duration-1000 ${selectedScene.containerStyle}`} style={{ backgroundImage: `url(${selectedScene.preview})` }}>
                                         <div className={`${selectedScene.innerStyle} overflow-hidden shadow-2xl shadow-black/50 transition-all duration-300`} style={{ transform: `${selectedScene.innerStyle.split('transform ')[1] || ''} scale(${mockupAdj.zoom / 100}) translate(${mockupAdj.x}px, ${mockupAdj.y}px)` }}>
-                                            <img src={enhancedImage || file.preview} className="w-full h-full object-cover" />
+                                            <img src={enhancedImage || file?.preview} className="w-full h-full object-cover" />
                                             <div className={`absolute inset-0 ${selectedScene.lighting} pointer-events-none mix-blend-${selectedScene.blend}`}></div>
                                         </div>
                                     </div>
