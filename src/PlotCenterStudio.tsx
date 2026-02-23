@@ -41,12 +41,12 @@ export default function PlotCenterStudio() {
     } | null>(null);
 
     const [selectedColor, setSelectedColor] = useState<ColorData>({
-        hex: '#FFA500',
-        rgb: { r: 255, g: 165, b: 0 },
-        cmyk: { c: 0, m: 35, y: 100, k: 0 }
+        hex: '#F8FAFC',
+        rgb: { r: 248, g: 250, b: 252 },
+        cmyk: { c: 0, m: 0, y: 0, k: 0 }
     });
-    const [recentColors, setRecentColors] = useState<string[]>(['#C0C0C0', '#FFFFFF', '#000000', '#eb671b', '#FFA500']);
-    const [predominantPalette] = useState<string[]>(['#000000', '#F0691E', '#FFFFFF', '#878787', '#C3C3C3']);
+    const [recentColors, setRecentColors] = useState<string[]>([]);
+    const [predominantPalette] = useState<string[]>([]);
 
     // Estados de configuración técnica
     const [targetW, setTargetW] = useState<number>(100);
