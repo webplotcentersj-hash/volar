@@ -298,13 +298,13 @@ export default function PlotCenterStudio() {
             {/* Nav */}
             <header className="flex items-center justify-between mb-12 px-4">
                 <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 bg-gradient-to-br from-brand-orange to-[#ff9d63] rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-brand-orange/30">
+                    <div className={`w-12 h-12 ${image ? 'bg-gradient-to-br from-brand-orange to-[#ff9d63] shadow-brand-orange/30' : 'bg-slate-200'} rounded-2xl flex items-center justify-center text-white shadow-2xl transition-all duration-700`}>
                         <span className="font-black text-2xl tracking-tighter">PC</span>
                     </div>
                     <div>
                         <h1 className="text-2xl font-black tracking-tight text-gradient">Plot Center <span className="font-light text-slate-400">Intelligence</span></h1>
                         <div className="flex items-center gap-2 mt-[-2px]">
-                            <span className="w-2 h-2 rounded-full bg-brand-orange animate-pulse"></span>
+                            <span className={`w-2 h-2 rounded-full ${image ? 'bg-brand-orange animate-pulse' : 'bg-slate-300'}`}></span>
                             <p className="text-[9px] uppercase font-black text-slate-400 tracking-[0.25em]">CROMATIC STUDIO V2.1</p>
                         </div>
                     </div>
@@ -313,8 +313,8 @@ export default function PlotCenterStudio() {
                     <button className="flex items-center gap-2 text-[10px] font-black text-slate-500 hover:text-brand-orange transition-all tracking-widest">
                         <FileCode size={14} /> EXPORT CODE
                     </button>
-                    <div className="px-5 py-2 glass-card text-brand-orange rounded-full text-[9px] font-black uppercase tracking-[0.2em] border-orange-100">
-                        ENGINE ACTIVE
+                    <div className={`px-5 py-2 glass-card ${image ? 'text-brand-orange border-orange-100' : 'text-slate-400 border-slate-100'} rounded-full text-[9px] font-black uppercase tracking-[0.2em]`}>
+                        {image ? 'ENGINE ACTIVE' : 'ENGINE STANDBY'}
                     </div>
                 </div>
             </header>
@@ -362,11 +362,11 @@ export default function PlotCenterStudio() {
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-3 pt-4">
-                                    <button onClick={runAnalysis} disabled={isAnalyzing} className="w-full py-4 bg-gradient-to-r from-brand-orange to-[#ff8c42] text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl shadow-brand-orange/20 active:scale-95 transition-all disabled:opacity-50">
+                                    <button onClick={runAnalysis} disabled={isAnalyzing} className={`w-full py-4 ${image ? 'bg-gradient-to-r from-brand-orange to-[#ff8c42] shadow-brand-orange/20' : 'bg-slate-200 text-slate-400'} text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all disabled:opacity-50`}>
                                         {isAnalyzing ? <RefreshCcw className="animate-spin" size={12} /> : <Zap size={14} fill="currentColor" />}
                                         Lanzar Diagnóstico
                                     </button>
-                                    <button onClick={generateEnhanced} disabled={isGenerating} className="w-full py-4 bg-slate-900 text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 shadow-xl shadow-slate-900/10">
+                                    <button onClick={generateEnhanced} disabled={isGenerating} className={`w-full py-4 ${image ? 'bg-slate-900 shadow-slate-900/10' : 'bg-slate-100 text-slate-300'} text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 shadow-xl`}>
                                         {isGenerating ? <RefreshCcw className="animate-spin" size={12} /> : <Wand2 size={14} />}
                                         NANO BANANA
                                     </button>
