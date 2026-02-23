@@ -10,10 +10,8 @@ import {
     AlertTriangle,
     XCircle,
     Activity,
-    ClipboardCheck,
     Palette,
-    Download,
-    BarChart3
+    Download
 } from 'lucide-react';
 import {
     BarChart,
