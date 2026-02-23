@@ -2,34 +2,38 @@
 
 @theme {
     --color-brand-orange: #f26d21;
-    --color-studio-bg: #f8fafc;
-    --color-studio-card: #ffffff;
-    --color-accent-soft: rgba(242, 109, 33, 0.08);
+    --color-studio-bg: #0a0b14;
+    --color-studio-card: rgba(16, 18, 27, 0.8);
+    --color-accent-soft: rgba(242, 109, 33, 0.1);
 }
 
 @layer base {
     body {
-        @apply bg-[#f8fafc] text-slate-800 antialiased;
+        @apply bg-[#0a0b14] text-slate-300 antialiased;
         font-family: 'Outfit', sans-serif;
+        background-image:
+            radial-gradient(at 0% 0%, rgba(242, 109, 33, 0.05) 0px, transparent 40%),
+            radial-gradient(at 100% 100%, rgba(30, 41, 59, 0.05) 0px, transparent 40%);
+        background-attachment: fixed;
     }
 }
 
 .premium-shadow {
     box-shadow:
-        0 4px 6px -1px rgba(0, 0, 0, 0.02),
-        0 20px 40px -12px rgba(0, 0, 0, 0.04);
+        0 4px 6px -1px rgba(0, 0, 0, 0.2),
+        0 20px 40px -12px rgba(0, 0, 0, 0.4);
 }
 
 .glass-card {
-    @apply bg-white/70 backdrop-blur-2xl border border-white/40;
+    @apply bg-[#10121b]/80 backdrop-blur-2xl border border-white/5;
 }
 
 .inner-border {
-    border: 1px solid rgba(226, 232, 240, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-br from-slate-900 via-slate-700 to-slate-500;
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-white via-slate-300 to-slate-500;
 }
 
 .hover-lift {
@@ -38,7 +42,7 @@
 }
 
 .hover-lift:hover {
-    @apply -translate-y-1.5 shadow-2xl shadow-slate-200/50;
+    @apply -translate-y-1.5 shadow-2xl shadow-black/50;
 }
 
 .mask-fade {
@@ -52,4 +56,13 @@
 .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+/* Neon Glows */
+.neon-text {
+    text-shadow: 0 0 10px rgba(242, 109, 33, 0.5);
+}
+
+.neon-border {
+    box-shadow: 0 0 15px rgba(242, 109, 33, 0.2);
 }

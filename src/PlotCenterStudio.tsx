@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, type ChangeEvent } from 'react';
+import React, { useState, useRef, useCallback, useEffect, type ChangeEvent } from 'react';
 import {
     Upload,
     Copy,
@@ -30,6 +30,13 @@ interface ColorData {
     cmyk: { c: number; m: number; y: number; k: number };
 }
 
+interface VerdictStyle {
+    color: string;
+    bg: string;
+    border: string;
+    icon: React.ReactElement;
+}
+
 export default function PlotCenterStudio() {
     const [image, setImage] = useState<string | null>(null);
     const [fileData, setFileData] = useState<{
@@ -46,7 +53,6 @@ export default function PlotCenterStudio() {
         cmyk: { c: 0, m: 0, y: 0, k: 0 }
     });
     const [recentColors, setRecentColors] = useState<string[]>([]);
-    const [predominantPalette] = useState<string[]>([]);
 
     // Estados de configuración técnica
     const [targetW, setTargetW] = useState<number>(100);
@@ -193,7 +199,7 @@ export default function PlotCenterStudio() {
         { name: 'Bellas Artes', val: 300, fill: '#64748b' },
     ];
 
-    const getVerdictStyle = (verdict: string) => {
+    const getVerdictStyle = (verdict: string): VerdictStyle => {
         switch (verdict) {
             case 'APTO': return { color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: <CheckCircle2 size={32} /> };
             case 'APTO CON RESERVAS': return { color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', icon: <AlertTriangle size={32} /> };
@@ -290,30 +296,32 @@ export default function PlotCenterStudio() {
     const harmonies = getHarmonies();
 
     // Mini helper for card shadows and styles
-    const cardClass = "glass-card rounded-[2.5rem] p-8 hover-lift flex flex-col relative overflow-hidden";
-    const sectionTitle = "text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6 flex items-center justify-between";
+    const cardClass = "glass-card rounded-[2.5rem] p-8 hover-lift shadow-2xl relative overflow-hidden";
+    const sectionTitle = "text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-6 flex items-center justify-between";
 
     return (
         <div className="min-h-screen p-6 max-w-[1400px] mx-auto text-slate-900">
             {/* Nav */}
             <header className="flex items-center justify-between mb-12 px-4">
                 <div className="flex items-center gap-5">
-                    <div className={`w-12 h-12 ${image ? 'bg-gradient-to-br from-brand-orange to-[#ff9d63] shadow-brand-orange/30' : 'bg-slate-200'} rounded-2xl flex items-center justify-center text-white shadow-2xl transition-all duration-700`}>
+                    <div className={`w-12 h-12 ${image ? 'bg-gradient-to-br from-brand-orange to-[#ff9d63] shadow-brand-orange/30' : 'bg-brand-orange/20 border border-brand-orange/30'} rounded-2xl flex items-center justify-center text-white shadow-2xl transition-all duration-700`}>
                         <span className="font-black text-2xl tracking-tighter">PC</span>
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black tracking-tight text-gradient">Plot Center <span className="font-light text-slate-400">Intelligence</span></h1>
+                        <h1 className="text-2xl font-black tracking-tight text-white uppercase italic">
+                            Plot Center <span className="text-brand-orange neon-text">Analytic</span>
+                        </h1>
                         <div className="flex items-center gap-2 mt-[-2px]">
-                            <span className={`w-2 h-2 rounded-full ${image ? 'bg-brand-orange animate-pulse' : 'bg-slate-300'}`}></span>
-                            <p className="text-[9px] uppercase font-black text-slate-400 tracking-[0.25em]">CROMATIC STUDIO V2.1</p>
+                            <span className={`w-2 h-2 rounded-full ${image ? 'bg-brand-orange animate-pulse' : 'bg-emerald-500 animate-pulse'}`}></span>
+                            <p className="text-[9px] uppercase font-black text-slate-500 tracking-[0.25em]">ADVANCED PRE-FLIGHT STUDIO</p>
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-6">
-                    <button className="flex items-center gap-2 text-[10px] font-black text-slate-500 hover:text-brand-orange transition-all tracking-widest">
+                    <button className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-brand-orange transition-all tracking-widest">
                         <FileCode size={14} /> EXPORT CODE
                     </button>
-                    <div className={`px-5 py-2 glass-card ${image ? 'text-brand-orange border-orange-100' : 'text-slate-400 border-slate-100'} rounded-full text-[9px] font-black uppercase tracking-[0.2em]`}>
+                    <div className={`px-5 py-2 glass-card ${image ? 'text-brand-orange border-brand-orange/20 neon-border' : 'text-slate-400 border-white/5'} rounded-full text-[9px] font-black uppercase tracking-[0.2em] transition-all`}>
                         {image ? 'ENGINE ACTIVE' : 'ENGINE STANDBY'}
                     </div>
                 </div>
@@ -322,16 +330,16 @@ export default function PlotCenterStudio() {
             <div className="grid grid-cols-12 gap-6">
                 {/* Lateral Izquierdo */}
                 <div className="col-span-3 space-y-6">
-                    {/* Laboratorio */}
+                    {/* Laboratorio / Unidad de Ingesta */}
                     <div className={cardClass}>
-                        <h2 className={sectionTitle}>LABORATORIO</h2>
+                        <h2 className={sectionTitle}>{!image ? 'UNIDAD DE INGESTA' : 'LABORATORIO'}</h2>
                         {!image ? (
-                            <label className="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl p-8 hover:border-brand-orange/50 transition-colors cursor-pointer text-center">
+                            <label className="flex-grow flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-3xl p-10 hover:border-brand-orange/30 transition-all cursor-pointer text-center group bg-black/20">
                                 <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
-                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-4">
-                                    <Upload size={24} />
+                                <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-white/20 mb-6 group-hover:scale-110 transition-transform group-hover:text-brand-orange/50">
+                                    <Upload size={32} />
                                 </div>
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Vincular Diseño</p>
+                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sincronizar Arte Maestro</p>
                             </label>
                         ) : (
                             <div className="space-y-4">
@@ -423,88 +431,89 @@ export default function PlotCenterStudio() {
                 {/* Centro */}
                 <div className="col-span-6 space-y-6">
                     {/* Preview Principal & Diagnóstico */}
-                    <div className="glass-card rounded-[3.5rem] p-12 hover-lift flex flex-col items-center min-h-[500px] justify-between relative overflow-hidden">
+                    <div className="glass-card rounded-[3.5rem] p-12 hover-lift flex flex-col items-center min-h-[600px] justify-between relative overflow-hidden">
+                        {!image ? (
+                            <div className="flex-grow flex flex-col items-center justify-start w-full transition-all duration-1000">
+                                <div className="w-full text-left mb-20 animate-in fade-in slide-in-from-left-4 duration-1000 flex justify-between items-start">
+                                    <div>
+                                        <h2 className="text-4xl font-black text-white italic tracking-tighter mb-2">Diagnostic Console</h2>
+                                        <p className="text-[10px] font-black text-brand-orange uppercase tracking-[0.4em] opacity-80 neon-text">ANÁLISIS DE VIABILIDAD PARA SISTEMAS PLOTTER.</p>
+                                    </div>
+                                    <div className="w-32 h-1 bg-gradient-to-r from-brand-orange to-transparent rounded-full mt-6 opacity-30"></div>
+                                </div>
 
-                        {/* MÉTRICAS TÉCNICAS (Top Floating) */}
-                        {image && (
-                            <div className="w-full grid grid-cols-3 gap-6 mb-12">
-                                <div className="p-5 bg-white/50 rounded-[2rem] border border-white shadow-sm hover:shadow-md transition-all">
-                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">PRECISIÓN DPI</p>
-                                    <p className="text-3xl font-black text-slate-800 tabular-nums">{metrics.dpi}</p>
-                                </div>
-                                <div className="p-5 bg-white/50 rounded-[2rem] border border-white shadow-sm hover:shadow-md transition-all">
-                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">VERSATILIDAD</p>
-                                    <p className="text-3xl font-black text-brand-orange tabular-nums">+{metrics.scalability}%</p>
-                                </div>
-                                <div className="p-5 bg-slate-900 rounded-[2rem] text-center flex flex-col justify-center shadow-xl shadow-slate-900/10 hover:scale-[1.02] transition-transform">
-                                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">PROYECCIÓN</p>
-                                    <p className="text-2xl font-black text-white tabular-nums tracking-tighter">{metrics.distance}<span className="text-[10px] text-slate-500 ml-1">MTS</span></p>
+                                <div className="flex-grow flex flex-col items-center justify-center py-20 animate-in fade-in zoom-in duration-1000">
+                                    <div className="w-24 h-24 bg-white/[0.02] border border-white/[0.05] rounded-3xl flex items-center justify-center text-slate-700 mb-8 relative">
+                                        <div className="absolute inset-0 bg-brand-orange/5 blur-3xl rounded-full"></div>
+                                        <Palette size={48} strokeWidth={1} className="animate-pulse" />
+                                    </div>
+                                    <p className="text-slate-500 font-black uppercase tracking-[0.5em] text-xs italic animate-pulse">Esperando Sincronización...</p>
                                 </div>
                             </div>
-                        )}
-
-                        <div className="flex-grow flex items-center justify-center w-full relative py-8">
-                            {image ? (
-                                <div className="relative group">
-                                    <img
-                                        ref={imgRef}
-                                        src={enhancedImage || image}
-                                        alt="Preview"
-                                        className="max-h-[350px] rounded-2xl shadow-2xl cursor-crosshair transition-transform active:scale-[0.98]"
-                                        onClick={handleImageClick}
-                                    />
-                                    <canvas ref={canvasRef} className="hidden" />
-                                    <div className="absolute inset-x-0 bottom-[-50px] flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <div className="bg-slate-900/80 text-white px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-widest backdrop-blur-sm shadow-xl">
-                                            HAZ CLIC PARA CAPTURAR UN COLOR
-                                        </div>
+                        ) : (
+                            <div className="flex-grow flex flex-col items-center justify-start w-full">
+                                {/* MÉTRICAS TÉCNICAS (Top Floating) */}
+                                <div className="w-full grid grid-cols-3 gap-6 mb-12 animate-in slide-in-from-top-4 duration-700">
+                                    <div className="p-5 bg-white/5 rounded-[2rem] border border-white/5 shadow-sm hover:shadow-md transition-all">
+                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">PRECISIÓN DPI</p>
+                                        <p className="text-3xl font-black text-white tabular-nums">{metrics.dpi}</p>
                                     </div>
-                                    {enhancedImage && (
-                                        <div className="absolute top-4 right-4 px-3 py-1 bg-brand-orange text-white rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg">
-                                            MASTER OPTIMIZADO
-                                        </div>
-                                    )}
+                                    <div className="p-5 bg-white/5 rounded-[2rem] border border-white/5 shadow-sm hover:shadow-md transition-all">
+                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">VERSATILIDAD</p>
+                                        <p className="text-3xl font-black text-brand-orange tabular-nums neon-text">+{metrics.scalability}%</p>
+                                    </div>
+                                    <div className="p-5 bg-brand-orange/10 border border-brand-orange/20 rounded-[2rem] text-center flex flex-col justify-center shadow-xl shadow-brand-orange/5 hover:scale-[1.02] transition-transform">
+                                        <p className="text-[8px] font-black text-brand-orange/50 uppercase tracking-[0.2em] mb-2">PROYECCIÓN</p>
+                                        <p className="text-2xl font-black text-brand-orange tabular-nums tracking-tighter neon-text">{metrics.distance}<span className="text-[10px] text-slate-500 ml-1 italic font-light italic">MTS</span></p>
+                                    </div>
                                 </div>
-                            ) : (
-                                <div className="text-slate-300 flex flex-col items-center gap-4 py-20">
-                                    <Upload size={80} strokeWidth={1} />
-                                    <p className="font-bold uppercase tracking-tighter text-xl italic text-slate-200">Waiting for Input...</p>
-                                </div>
-                            )}
-                        </div>
 
-                        {/* RESULTADO IA (Verdict Card) */}
-                        {report && (
-                            <div className="w-full mt-12">
-                                {(() => {
-                                    const v = getVerdictStyle(report.veredicto_final);
-                                    return (
-                                        <div className={`w-full p-8 rounded-[2.5rem] ${v.bg} border ${v.border} flex items-center gap-8 shadow-sm hover:shadow-md transition-all`}>
-                                            <div className={`${v.color} shrink-0 drop-shadow-sm`}>{v.icon}</div>
-                                            <div>
-                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">NEURAL VERDICT</p>
-                                                <h3 className={`text-2xl font-black ${v.color} tracking-tight leading-none mb-1 uppercase`}>{report.veredicto_final}</h3>
-                                                <p className="text-[11px] text-slate-600 font-semibold mt-1 leading-relaxed opacity-80">{report.motivo_veredicto}</p>
+                                <div className="flex-grow flex items-center justify-center w-full relative py-8">
+                                    <div className="relative group">
+                                        <img
+                                            ref={imgRef}
+                                            src={enhancedImage || image}
+                                            alt="Preview"
+                                            className="max-h-[350px] rounded-2xl shadow-2xl cursor-crosshair transition-transform active:scale-[0.98] border border-white/10"
+                                            onClick={handleImageClick}
+                                        />
+                                        <canvas ref={canvasRef} className="hidden" />
+                                        <div className="absolute inset-x-0 bottom-[-50px] flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="bg-white/10 text-white px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-widest backdrop-blur-md border border-white/20 shadow-xl">
+                                                HAZ CLIC PARA CAPTURAR UN COLOR
                                             </div>
                                         </div>
-                                    );
-                                })()}
+                                        {enhancedImage && (
+                                            <div className="absolute top-4 right-4 px-3 py-1 bg-brand-orange text-white rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg shadow-brand-orange/20">
+                                                MASTER OPTIMIZADO
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* RESULTADO IA (Verdict Card) */}
+                                {report && (
+                                    <div className="w-full mt-12 animate-in slide-in-from-bottom-4 duration-700">
+                                        {(() => {
+                                            const v = getVerdictStyle(report.veredicto_final);
+                                            return (
+                                                <div className={`w-full p-10 rounded-[2.5rem] bg-black/40 border border-white/5 flex items-center gap-10 shadow-2xl`}>
+                                                    <div className={`${v.color} shrink-0 drop-shadow-2xl scale-110`}>{v.icon}</div>
+                                                    <div className="flex-grow">
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">NEURAL VERDICT</p>
+                                                            <span className="w-20 h-[1px] bg-white/5"></span>
+                                                        </div>
+                                                        <h3 className={`text-4xl font-black ${v.color} tracking-tight leading-none mb-3 uppercase italic`}>{report.veredicto_final}</h3>
+                                                        <p className="text-[12px] text-slate-400 font-medium leading-relaxed opacity-80 max-w-2xl">{report.motivo_veredicto}</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
                             </div>
                         )}
-
-                        {/* Paleta Predominante */}
-                        <div className="w-full pt-12 text-left mt-16 relative">
-                            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-slate-100 to-transparent"></div>
-                            <h2 className={sectionTitle}>PALETA PREDOMINANTE</h2>
-                            <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide">
-                                {(report?.detected_colors?.map((c: any) => c.hex) || predominantPalette).map((c: string, i: number) => (
-                                    <div key={i} className="flex flex-col items-center gap-4 shrink-0 group">
-                                        <div className="w-20 h-24 rounded-2xl shadow-2xl border-[6px] border-white transition-all group-hover:-translate-y-3 cursor-pointer group-hover:rotate-2" style={{ backgroundColor: c }} onClick={() => setSelectedColor({ hex: c, rgb: { r: 0, g: 0, b: 0 }, cmyk: { c: 0, m: 0, y: 0, k: 0 } })}></div>
-                                        <span className="text-[10px] font-black text-slate-400 tabular-nums tracking-widest opacity-0 group-hover:opacity-100 transition-opacity uppercase">{c}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
                     </div>
 
                     {/* INFORME TÉCNICO & BENCHMARKING (Grid Inferior) */}
