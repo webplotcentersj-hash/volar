@@ -140,6 +140,19 @@ export default function PlotCenterStudio() {
 
     useEffect(() => { updateMetrics(); }, [updateMetrics]);
 
+    const resetSession = () => {
+        setImage(null);
+        setFileData(null);
+        setReport(null);
+        setEnhancedImage(null);
+        setTargetW(100);
+        setTargetH(100);
+        setUnit('cm');
+        setMetrics({ dpi: 0, distance: '0.00', ratio: 1, ratioText: 'Cuadrado', scalability: 0 });
+        localStorage.removeItem('pc_studio_session');
+        showToast("SISTEMA RESETEADO");
+    };
+
     // Análisis Técnico con Gemini
     const runAnalysis = async () => {
         if (!fileData) return;
@@ -181,16 +194,16 @@ export default function PlotCenterStudio() {
         }
     };
 
-    // Generación de versión mejorada con Nano Banana
+    // Generación de versión mejorada (Mejorar Foto)
     const generateEnhanced = async () => {
         if (!fileData) return;
         setIsGenerating(true);
-        showToast("RECONSTRUYENDO ARTE...");
+        showToast("OPTIMIZANDO IMAGEN...");
 
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-        const prompt = "Actúa como diseñador senior. Rediseña esta imagen en una versión 'master' optimizada para impresión de gran formato. Mejora nitidez, luces y balance cromático.";
+        const prompt = "Actúa como experto en pre-impresión. Genera una versión de esta imagen con resolución mejorada, eliminación de artefactos de compresión y balance de blancos optimizado. Devuelve la imagen como un 'inlineData' de tipo image/png.";
 
         try {
             const response = await fetch(apiUrl, {
@@ -198,7 +211,10 @@ export default function PlotCenterStudio() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/png", data: fileData.base64 } }] }],
-                    generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+                    generationConfig: {
+                        responseModalities: ['IMAGE'],
+                        // Note: Using 2.0-flash sometimes requires specific handling for multimodal outputs
+                    }
                 })
             });
             const result = await response.json();
@@ -358,6 +374,11 @@ export default function PlotCenterStudio() {
                     </div>
                 </div>
                 <div className="flex items-center gap-6">
+                    <button
+                        onClick={resetSession}
+                        className="flex items-center gap-2 text-[10px] font-black text-slate-500 hover:text-red-500 transition-all tracking-[0.2em] group border border-white/5 px-4 py-2 rounded-xl bg-white/5">
+                        <RefreshCcw size={14} className="group-hover:rotate-180 transition-transform duration-500" /> RESET SESSION
+                    </button>
                     <button
                         onClick={exportData}
                         className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-brand-orange transition-all tracking-[0.2em] group">
