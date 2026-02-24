@@ -203,7 +203,7 @@ export default function PlotCenterStudio() {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-        const prompt = "Actúa como experto en pre-impresión. Genera una versión de esta imagen con resolución mejorada, eliminación de artefactos de compresión y balance de blancos optimizado. Devuelve la imagen como un 'inlineData' de tipo image/png.";
+        const prompt = "TRANSFORMAR IMAGEN: Actúa como un motor de rediseño neural de alta fidelidad. Analiza esta imagen y reconstruye una versión 'MASTER' de ultra alta resolución (4K) para impresión profesional. 1. Elimina todo el ruido y artefactos de compresión. 2. Realza los bordes y texturas de forma vectorial. 3. Regenera los colores para un espacio de color CMYK vibrante. Genera solo la imagen resultante como salida.";
 
         try {
             const response = await fetch(apiUrl, {
@@ -213,16 +213,35 @@ export default function PlotCenterStudio() {
                     contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/png", data: fileData.base64 } }] }],
                     generationConfig: {
                         responseModalities: ['IMAGE'],
-                        // Note: Using 2.0-flash sometimes requires specific handling for multimodal outputs
+                        maxOutputTokens: 2048,
                     }
                 })
             });
             const result = await response.json();
-            const base64Data = result?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
 
-            if (base64Data) {
-                setEnhancedImage(`data:image/png;base64,${base64Data}`);
-                showToast("VERSIÓN MEJORADA LISTA");
+            // Log for debugging if needed (in a real env)
+            console.log("Enhancement result:", result);
+
+            // Robust part finding for image data
+            const candidates = result?.candidates || [];
+            let foundBase64 = null;
+
+            for (const candidate of candidates) {
+                const parts = candidate.content?.parts || [];
+                for (const part of parts) {
+                    if (part.inlineData?.data) {
+                        foundBase64 = part.inlineData.data;
+                        break;
+                    }
+                }
+                if (foundBase64) break;
+            }
+
+            if (foundBase64) {
+                setEnhancedImage(`data:image/png;base64,${foundBase64}`);
+                showToast("MASTER GENERADO CON ÉXITO");
+            } else {
+                showToast("SISTEMA OCUPADO - REINTENTA");
             }
         } catch (error) {
             showToast("ERROR GENERATIVO");
@@ -719,7 +738,34 @@ export default function PlotCenterStudio() {
                         </div>
                     </div>
 
-                    {/* ADN VISUAL & NANO BANANA PREVIEW */}
+                    {/* Materiales Recomendados */}
+                    {report && (
+                        <div className={cardClass}>
+                            <h2 className={sectionTitle}>ESPECIFICACIONES DE FABRICACIÓN</h2>
+                            <div className="space-y-4">
+                                <div className="p-5 bg-white/5 border border-white/5 rounded-[1.5rem] group hover:bg-white/[0.08] transition-all">
+                                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 opacity-60 italic">SUSTRATO RECOMENDADO</p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-brand-orange/10 rounded-lg">
+                                            <Zap size={14} className="text-brand-orange" />
+                                        </div>
+                                        <p className="text-sm font-black text-white uppercase tracking-tight">{report.sustrato}</p>
+                                    </div>
+                                </div>
+                                <div className="p-5 bg-white/5 border border-white/5 rounded-[1.5rem] group hover:bg-white/[0.08] transition-all">
+                                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 opacity-60 italic">ACABADO SUGERIDO</p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-emerald-500/10 rounded-lg">
+                                            <CheckCircle2 size={14} className="text-emerald-500" />
+                                        </div>
+                                        <p className="text-sm font-black text-brand-orange uppercase tracking-tight neon-text">{report.acabado}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ADN VISUAL & MASTER GENERADO */}
                     {report && (
                         <div className={cardClass}>
                             <h2 className={sectionTitle}><Palette size={14} className="opacity-50" /> IDENTIFICACIÓN ADN</h2>
@@ -734,15 +780,15 @@ export default function PlotCenterStudio() {
                                 </div>
                                 {enhancedImage && (
                                     <div className="pt-2 border-t border-white/5 space-y-4">
-                                        <p className="text-[8px] font-black text-brand-orange uppercase italic tracking-widest opacity-80">MASTER GENERADO</p>
+                                        <p className="text-[8px] font-black text-brand-orange uppercase italic tracking-widest opacity-80">MASTER OPTIMIZADO LISTO</p>
                                         <button onClick={() => {
                                             const link = document.createElement("a");
                                             link.href = enhancedImage!;
                                             link.download = "master-plot-center.png";
                                             link.click();
-                                        }} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-center gap-3 transition-all group">
-                                            <Download size={14} className="text-brand-orange group-hover:scale-110 transition-transform" />
-                                            <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">Descargar Master</span>
+                                        }} className="w-full py-4 bg-brand-orange text-white shadow-2xl shadow-brand-orange/20 rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-95 group">
+                                            <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">DESCARGAR MASTER</span>
                                         </button>
                                     </div>
                                 )}
