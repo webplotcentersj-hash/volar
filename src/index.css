@@ -40,7 +40,7 @@
     }
 
     .nav-tag {
-        @apply px-4 py-1.5 glass-card-light rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-white/5;
+        @apply px-4 py-1.5 bg-white/5 backdrop-blur-xl border border-white/5 shadow-sm hover:border-white/10 transition-all rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-slate-400;
     }
 }
 
